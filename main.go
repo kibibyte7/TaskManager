@@ -3,6 +3,7 @@ package main
 //Les importations
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -87,6 +88,10 @@ func main() {
 
 				}
 
+			case "delete task":
+
+				deleteElement()
+
 			//Commande invalide
 			default:
 
@@ -116,6 +121,7 @@ func readLine() string {
 
 	//On retourne le résultat
 	return strings.TrimSpace(line)
+
 }
 
 //Permet de lire un nombre à virgule donner par l'utilisateur
@@ -376,127 +382,239 @@ func listTask(){
 }
 
 func exportToXlsx() error {
-	problemID := 1
-	solutionID := 1
-	fichier := xlsx.NewFile()
-	feuille, err := fichier.AddSheet("tasks")
 
-	if err != nil {
-		return err
-	}
+	//Si la liste n'est pas vide
+	if len(listeTaches) != 0 {
 
-	// En-têtes XLSX
-	titres := feuille.AddRow()
-	titres.AddCell().Value = "Nom"
-	titres.AddCell().Value = "Heures facturable"
-	titres.AddCell().Value = "Heures non-facturable"
+		//On prend l'ID du problème
+		problemID := 1
 
-	//Style des problèmes
-	styleProbleme := xlsx.NewStyle()
-	styleProbleme.Fill = *xlsx.NewFill("solid", "#000000", "#FF0000")
-	styleProbleme.Font.Bold = true
-	styleProbleme.ApplyFill = true
-	styleProbleme.ApplyFont = true
+		//On prend l'ID de la solution
+		solutionID := 1
 
-	//Style des solutions
-	styleSolution := xlsx.NewStyle()
-	styleSolution.Fill = *xlsx.NewFill("solid", "#23B84B","#000000")
-	styleSolution.Font.Bold = true
-	styleSolution.ApplyFill = true
-	styleSolution.ApplyFont = true
+		//On crée le fichier
+		fichier := xlsx.NewFile()
 
-	//Style des réunions
-	styleReunion := xlsx.NewStyle()
-	styleReunion.Fill = *xlsx.NewFill("solid", "#000000", "#00D5FF")
-	styleReunion.Font.Bold = true
-	styleReunion.ApplyFill = true
-	styleReunion.ApplyFont = true
+		//On ajoute une feuille pour mettre nos tâches dedans
+		feuille, err := fichier.AddSheet("tasks")
 
-	//Style des choses diverses
-	styleDivers := xlsx.NewStyle()
-	styleDivers.Fill = *xlsx.NewFill("solid", "#000000", "#D4FC21")
-	styleDivers.Font.Bold = true
-	styleDivers.ApplyFill = true
-	styleDivers.ApplyFont = true
-	
-	for _, tache := range listeTaches {
+		//S'il y a une erreur
+		if err != nil {
 
-		ligne := feuille.AddRow()
-
-		var cell *xlsx.Cell
-
-		switch tache.Type {
-			
-			case "normal":
-
-				cell = ligne.AddCell()
-				cell.Value = tache.Nom
-				break;
-
-			//Si le type de la tâche est un problème
-			case "problème":
-
-				//On met le nom en rouge
-				cell = ligne.AddCell()
-				cell.Value = strings.Join([]string{"Problème #", fmt.Sprintf("%v",problemID), ": ", tache.Nom}, "")
-
-				cell.SetStyle(styleProbleme)
-
-				problemID++
-
-				break;
-			
-			//Si la tâche est une solution à un problème
-			case "solution":
-
-				//On met son texte en vert
-				cell = ligne.AddCell()
-				cell.Value = strings.Join([]string{"Solution au problème #", fmt.Sprintf("%v",solutionID), ": ", tache.Nom}, "")
-
-				cell.SetStyle(styleSolution)
-
-				solutionID++
-				
-				break;
-			
-			//Si cette tâche est une réunion avec les chefs de projets ou le client
-			case "réunion":
-
-				//On met le texte en bleu
-				cell = ligne.AddCell()
-				cell.Value = tache.Nom
-
-				cell.SetStyle(styleReunion)
-				
-				break;
-			
-			//Si cette tâche est une chose divers
-			case "divers":
-
-				//On met cette tâche en jaune
-				cell = ligne.AddCell()
-				cell.Value = tache.Nom
-
-				cell.SetStyle(styleDivers)
-				
-				break;
+			//Retourne l'erreur
+			return err
 
 		}
 
+		// Je crée les entêtes de ce que je dois avoir comme info pour mes tâches
+		titres := feuille.AddRow()
+		titres.AddCell().Value = "Nom"
+		titres.AddCell().Value = "Heures facturable"
+		titres.AddCell().Value = "Heures non-facturable"
 
-		if tache.Facturable {
+		//Style des problèmes
+		styleProbleme := xlsx.NewStyle()
+		styleProbleme.Fill = *xlsx.NewFill("solid", "#000000", "#FF0000")
+		styleProbleme.Font.Bold = true
+		styleProbleme.ApplyFill = true
+		styleProbleme.ApplyFont = true
 
-			ligne.AddCell().Value = fmt.Sprintf("%.2f", tache.Heures)
-			ligne.AddCell().Value = fmt.Sprintf("%v", 0)
+		//Style des solutions
+		styleSolution := xlsx.NewStyle()
+		styleSolution.Fill = *xlsx.NewFill("solid", "#23B84B","#000000")
+		styleSolution.Font.Bold = true
+		styleSolution.ApplyFill = true
+		styleSolution.ApplyFont = true
 
+		//Style des réunions
+		styleReunion := xlsx.NewStyle()
+		styleReunion.Fill = *xlsx.NewFill("solid", "#000000", "#00D5FF")
+		styleReunion.Font.Bold = true
+		styleReunion.ApplyFill = true
+		styleReunion.ApplyFont = true
+
+		//Style des choses diverses
+		styleDivers := xlsx.NewStyle()
+		styleDivers.Fill = *xlsx.NewFill("solid", "#000000", "#D4FC21")
+		styleDivers.Font.Bold = true
+		styleDivers.ApplyFill = true
+		styleDivers.ApplyFont = true
+		
+		//Je parcours ma liste de tâches
+		for _, tache := range listeTaches {
+
+			//J'ajoute une ligne
+			ligne := feuille.AddRow()
+
+			//Je déclare une variable de cellule avec un pointeur
+			var cell *xlsx.Cell
+
+			//Je traite le type de la tâche
+			switch tache.Type {
+				
+				//Dans un cas classique
+				case "normal":
+
+					//On met juste le nom normal
+					cell = ligne.AddCell()
+					cell.Value = tache.Nom
+					break;
+
+				//Si le type de la tâche est un problème
+				case "problème":
+
+					//On met le nom en rouge
+					cell = ligne.AddCell()
+
+					//Je formate la tâche en "Poblème #numéro: nom de la tâche"
+					cell.Value = strings.Join([]string{"Problème #", fmt.Sprintf("%v",problemID), ": ", tache.Nom}, "")
+
+					//Je met le style que la cellule doit avoit (Gras + rouge)
+					cell.SetStyle(styleProbleme)
+
+					//J'incrémente l'ID du problème
+					problemID++
+
+					break;
+				
+				//Si la tâche est une solution à un problème
+				case "solution":
+
+					//On met le nom en vert
+					cell = ligne.AddCell()
+
+					//Je formate la tâche en "Solution pour le problème #numéro: nim de la tâche"
+					cell.Value = strings.Join([]string{"Solution au problème #", fmt.Sprintf("%v",solutionID), ": ", tache.Nom}, "")
+
+					//Je mets le style que la cellule doit avoir (Gras + vert)
+					cell.SetStyle(styleSolution)
+
+					//J'incrémente l'ID de la solution
+					solutionID++
+					
+					break;
+				
+				//Si cette tâche est une réunion avec les chefs de projets ou le client
+				case "réunion":
+
+					//On met le texte en bleu
+					cell = ligne.AddCell()
+
+					//Je mets le nom de la tâche
+					cell.Value = tache.Nom
+
+					//Je mets le style Gras et bleu sur la cellule
+					cell.SetStyle(styleReunion)
+					
+					break;
+				
+				//Si cette tâche est une chose divers
+				case "divers":
+
+					//On met cette tâche en jaune
+					cell = ligne.AddCell()
+
+					//Je mets le nom de la tâche
+					cell.Value = tache.Nom
+
+					//Je mets le style Gras et Jaune sur la cellule
+					cell.SetStyle(styleDivers)
+					
+					break;
+
+			}
+
+			//Si la tâche est facturable
+			if tache.Facturable {
+
+				//J'ajoute d'abord l'heure de la tâche
+				ligne.AddCell().Value = fmt.Sprintf("%.2f", tache.Heures)
+
+				//Enfin j'ajoute l'heure non-facturable, qui est 0 dans ce cas-ci
+				ligne.AddCell().Value = fmt.Sprintf("%v", 0)
+
+			//Si la tâche n'est pas facturable
+			} else {
+
+				//J'ajoute un 0 dans l'heure facturable
+				ligne.AddCell().Value = fmt.Sprintf("%v", 0)
+
+				//Je mets l'heure non-facturable de la tâche
+				ligne.AddCell().Value = fmt.Sprintf("%.2f", tache.Heures)
+
+			}
+
+		}
+
+		//Pour finir je sauve le fichier et je gère les erreurs avec ce retour
+		return fichier.Save("./tasks.xlsx")
+
+	//Dans ce cas-ci la liste est vide
+	} else {
+
+		//On dit que la liste est vide
+		fmt.Printf("%vLa liste est vide.%v\n", escapeCodeRed,  escapeCodeColorReset)
+
+		//On crée une erreur et on la renvoie plus haut
+		return errors.New("La liste des tâches est vide")
+
+	}
+	
+}
+
+//Permet de supprimer un élément de la liste
+func deleteElement() bool{
+
+	//Est-ce que tout s'est bien passé ?
+	ok := false
+
+	//Tant que j'ai pas rentré un numéro valide ou que la liste n'est pas vide
+	for {
+
+		//Si la liste n'est pas vide
+		if len(listeTaches) != 0 {
+
+			//Message initial
+			fmt.Println("Supprimer un élément parmi cette liste")
+
+			//Lire les tâches pour aider notre utilisateur
+			listTask()
+
+			//On lit la chaîne de caractères
+			line := readLine()
+
+			//Je parse ce que j'ai lu en int
+			number, err := strconv.Atoi(line)
+
+			//Si le nombre se trouve dans la range de la liste
+			if err == nil && number >= 1 && number <= len(listeTaches) {
+
+				// Supprimer l'élément de la liste
+				listeTaches = append(listeTaches[:number-1], listeTaches[number:]...)
+
+				//Tout s'est bien passé
+				ok = true
+
+				//On dit à l'utilisateur que l'élément est supprimé
+				fmt.Printf("%vÉlément supprimé avec succès !%v\n", escapeCodeGreen, escapeCodeColorReset)
+
+				//On retourne ok, par principe
+				return ok
+
+			} else {
+
+				//Message d'erreur, l'utilisateur n'a pas pris un nombre entre 1 et la taille de la liste
+				fmt.Printf("%vChoisissez un nombre entre 1 et %v.%v\n", escapeCodeRed, len(listeTaches), escapeCodeColorReset)
+
+			}	
 		} else {
 
-			ligne.AddCell().Value = fmt.Sprintf("%v", 0)
-			ligne.AddCell().Value = fmt.Sprintf("%.2f", tache.Heures)
+			//Message d'erreur pour dire que la liste est vide
+			fmt.Printf("%vLa liste est vide.%v\n", escapeCodeRed,  escapeCodeColorReset)
+
+			//Retourner false
+			return ok
 
 		}
-
 	}
-
-	return fichier.Save("./tasks.xlsx")
 }
