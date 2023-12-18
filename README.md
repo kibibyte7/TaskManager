@@ -8,5 +8,9 @@ Voici une liste de commandes qui seront disponibles avec une revue de ce qui est
 - [x] delete task (Permet de supprimer une tâche)
 - [x] list tasks (Lister toutes les tâches en mémoire)
 - [x] export (Exporte la liste des tâches en mémoire dans un fichier xlsx comme pour un journal de travail basique)
-- [ ] help (Commande d'aide, pas encore implémentée)
-- [ ] usage (Permet de dire comment utiliser certaines commandes, pas encore implémentée)  
+- [x] help (Commande d'aide)
+- [ ] update task (Permet de mettre à jour une tâche)
+
+Bonus:
+- [ ] historique des commandes (Circulation dans l'hitorique avec flèche du haut ou du bas)
+- [ ] autocomplete (comme les raccourcis cmd, en pressant la touche tab)
