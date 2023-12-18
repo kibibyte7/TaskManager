@@ -12,8 +12,9 @@ Voici une liste de commandes qui seront disponibles avec une revue de ce qui est
 - [ ] update task (Permet de mettre à jour une tâche)
 
 Bonus:
-- [ ] historique des commandes (Circulation dans l'hitorique avec flèche du haut ou du bas)
-- [ ] autocomplete (comme les raccourcis cmd, en pressant la touche tab)
+- [ ] Historique des commandes (Circulation dans l'hitorique avec flèche du haut ou du bas)
+- [ ] Autocomplete (comme les raccourcis cmd, en pressant la touche tab)
+- [ ] Appli en mvc (architecture modèle, vue, contrôleur)
 
 Note: 
 Cette application est dans le cadre de mon apprentissage du langage de programmation, le GO (golang)
