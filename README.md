@@ -14,3 +14,6 @@ Voici une liste de commandes qui seront disponibles avec une revue de ce qui est
 Bonus:
 - [ ] historique des commandes (Circulation dans l'hitorique avec flèche du haut ou du bas)
 - [ ] autocomplete (comme les raccourcis cmd, en pressant la touche tab)
+
+Note: 
+Cette application est dans le cadre de mon apprentissage du langage de programmation, le GO (golang)
