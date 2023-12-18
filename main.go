@@ -10,6 +10,7 @@ import (
 	"strings"
 	"unicode"
 	"github.com/tealeg/xlsx"
+	"syscall"
 )
 
 //La structure de la tâche
@@ -24,17 +25,40 @@ type Task struct {
 var listeTaches []Task
 
 //Pour mettre des couleurs dans le terminal
-const escapeCodeRed = "\x1b[38;5;196m"
-const escapeCodeYellow = "\x1b[38;5;226m"
-const escapeCodeGreen = "\x1b[38;5;82m"
-const escapeCodeRose = "\x1b[38;5;205;1m"
-const escapeCodeBlue = "\x1b[38;5;87m"
-const escapeCodeViolet = "\x1b[38;5;99;1m"
+const escapeCodeRed = "\033[38;5;196m"
+const escapeCodeYellow = "\033[38;5;226m"
+const escapeCodeGreen = "\033[38;5;82m"
+const escapeCodeRose = "\033[38;5;205;1m"
+const escapeCodeBlue = "\033[38;5;87m"
+const escapeCodeViolet = "\033[38;5;99;1m"
 const escapeCodeColorReset = "\033[0m"
+const ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004
 
 //La fonction principale de mon programme
 func main() {
-	
+	kernel32, err := syscall.LoadLibrary("kernel32.dll")
+	if err != nil {
+		fmt.Println("Erreur lors du chargement de kernel32.dll:", err)
+		return
+	}
+	defer syscall.FreeLibrary(kernel32)
+
+	proc := syscall.MustLoadDLL("kernel32.dll").MustFindProc("SetConsoleMode")
+	hStdout := syscall.Handle(os.Stdout.Fd())
+
+	var mode uint32
+	err = syscall.GetConsoleMode(hStdout, &mode)
+	if err != nil {
+		fmt.Println("Impossible d'obtenir le mode de la console :", err)
+		return
+	}
+
+	ret, _, err := proc.Call(uintptr(hStdout), uintptr(mode|ENABLE_VIRTUAL_TERMINAL_PROCESSING))
+	if ret == 0 {
+		fmt.Println("Erreur lors de la modification du mode de la console :", err)
+		return
+	}
+
 	//L'équivalent d'un while
 	for {
 
