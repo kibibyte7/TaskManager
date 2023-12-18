@@ -10,7 +10,7 @@ import (
 	"strings"
 	"unicode"
 	"github.com/tealeg/xlsx"
-	"syscall"
+	"github.com/fatih/color"
 )
 
 //La structure de la tâche
@@ -21,10 +21,22 @@ type Task struct {
 	Type 	   string
 }
 
+//La structure d'une commande
+type Commande struct{
+	Nom string
+	Usage string
+	Description string
+	Run func()
+}
+
 //La liste des tâches
 var listeTaches []Task
 
+//La liste des commandes
+var listeCommandes []Commande
+
 //Pour mettre des couleurs dans le terminal
+/*
 const escapeCodeRed = "\033[38;5;196m"
 const escapeCodeYellow = "\033[38;5;226m"
 const escapeCodeGreen = "\033[38;5;82m"
@@ -32,97 +44,31 @@ const escapeCodeRose = "\033[38;5;205;1m"
 const escapeCodeBlue = "\033[38;5;87m"
 const escapeCodeViolet = "\033[38;5;99;1m"
 const escapeCodeColorReset = "\033[0m"
-const ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004
+*/
+
+//Pour mettre des couleurs dans le terminal
+var (
+	escapeCodeGreen  = color.New(color.FgGreen).SprintFunc()
+	escapeCodeRed    = color.New(color.FgRed).SprintFunc()
+	escapeCodeViolet = color.New(color.FgHiMagenta).SprintFunc()
+	escapeCodeRose   = color.New(color.FgHiCyan).SprintFunc()
+	escapeCodeBlue = color.New(color.FgCyan).SprintFunc()
+	escapeCodeYellow = color.New(color.FgYellow).SprintFunc()
+	escapeCodeColorReset = color.New(color.Reset).SprintFunc()
+)
 
 //La fonction principale de mon programme
 func main() {
-	kernel32, err := syscall.LoadLibrary("kernel32.dll")
-	if err != nil {
-		fmt.Println("Erreur lors du chargement de kernel32.dll:", err)
-		return
-	}
-	defer syscall.FreeLibrary(kernel32)
 
-	proc := syscall.MustLoadDLL("kernel32.dll").MustFindProc("SetConsoleMode")
-	hStdout := syscall.Handle(os.Stdout.Fd())
-
-	var mode uint32
-	err = syscall.GetConsoleMode(hStdout, &mode)
-	if err != nil {
-		fmt.Println("Impossible d'obtenir le mode de la console :", err)
-		return
-	}
-
-	ret, _, err := proc.Call(uintptr(hStdout), uintptr(mode|ENABLE_VIRTUAL_TERMINAL_PROCESSING))
-	if ret == 0 {
-		fmt.Println("Erreur lors de la modification du mode de la console :", err)
-		return
-	}
+	//Charger les commandes
+	loadCommands()
 
 	//L'équivalent d'un while
 	for {
 
-		//Lire l'entrée de l'utilisateur
-		fmt.Printf("%vTaskManager%v %v➜%v ", escapeCodeViolet, escapeCodeColorReset , escapeCodeRose , escapeCodeColorReset)
-		input := readLine()
-
-		//On distingue des commandes rentré
-		switch(strings.ToLower(input)){
-
-			//Cette commande permet d'ajouter une tâche
-			case "add task":
-
-				//Ajoute la tâche
-				addTask()
-
-				break;
-
-			//Cette commande permet de lister les tâches
-			case "list tasks":
-
-				//Liste les tâches
-				listTask()
-
-				break;
-
-			//Cette commande permet de quitter l'application
-			case "exit":
-
-				//On dit au revoir à l'utilisateur
-				fmt.Println("Au revoir !")
-
-				//On ferme le programme
-				os.Exit(0)
-
-				break;
-
-			case "export":
-
-				fmt.Println("Le fichier est en cours d'exportation...")
-
-				erreur := exportToXlsx()
-
-				if erreur == nil {
-
-					fmt.Printf("%vLe fichier a été exporté avec succès !%v\n",escapeCodeGreen,escapeCodeColorReset)
-
-				} else {
-
-					fmt.Printf("%vUne erreur est survenue lors de l'exportation !%v\n", escapeCodeRed, escapeCodeColorReset)
-
-				}
-
-			case "delete task":
-
-				deleteElement()
-
-			//Commande invalide
-			default:
-
-				//Dire à l'utilisateur que sa commande n'est pas valide
-				fmt.Printf("%vcommande invalide: %s.%v\n", escapeCodeRed, input, escapeCodeColorReset)
-		}
-
+		//Lire la commande
+		readCommand()
+			
 	}
 
 }
@@ -169,7 +115,7 @@ func readFloat() float64 {
 		}
 
 		//Sinon je dis à l'utilisateur d'entrer un nombre
-		fmt.Printf("%sVeuillez entrer un nombre valide.%s\n",escapeCodeRed,escapeCodeColorReset)
+		fmt.Printf("%sVeuillez entrer un nombre valide.%s\n",escapeCodeRed(), escapeCodeColorReset())
 	}
 }
 
@@ -197,7 +143,7 @@ func readBool() bool {
 		}
 		
 		//Je signale à l'utilisateur qu'il faut répondre par oui ou non
-		fmt.Printf("%sVeuillez entrer 'oui' ou 'non'.%s\n", escapeCodeRed, escapeCodeColorReset)
+		fmt.Printf("%sVeuillez entrer 'oui' ou 'non'.%s\n", escapeCodeRed(), escapeCodeColorReset())
 
 	}
 }
@@ -242,14 +188,14 @@ func readType() string {
 				
 				//Pas entre 1 et 5, donc pas valide
 				default:
-					fmt.Printf("%vEntrez un nombre entre 1 et 5.\n%v", escapeCodeRed, escapeCodeColorReset)
+					fmt.Printf("%vEntrez un nombre entre 1 et 5.\n%v", escapeCodeRed(), escapeCodeColorReset())
 			}
 		
 		//S'il y a une erreur
 		} else {
 
 			//Le faire savoir à l'utilisateur
-			fmt.Printf("%vCette entrée n'est pas un nombre valide.\n%v", escapeCodeRed, escapeCodeColorReset)
+			fmt.Printf("%vCette entrée n'est pas un nombre valide.\n%v", escapeCodeRed(), escapeCodeColorReset())
 
 		}
 	}
@@ -282,7 +228,13 @@ func addTask() {
 	fmt.Println()
 
 	//On demande le type de tâche que c'est
-	fmt.Println("Quel est le type de la tâche ?\n\n[1] Normal\n[2] Problème\n[3] Solution\n[4] Réunion\n[5] Divers")
+	fmt.Printf("Quel est le type de la tâche ?\n")
+	
+	fmt.Println("[1] Normal")
+	color.New(color.FgRed).Println("[2] Problème")
+	color.New(color.FgGreen).Println("[3] Solution")
+	color.New(color.FgCyan).Println("[4] Réunion")
+	color.New(color.FgYellow).Println("[5] Divers")
 	tache.Type = readType()
 	fmt.Println()
 
@@ -300,7 +252,7 @@ func listTask(){
 	if len(listeTaches) == 0 {
 
 		//Dire à l'utilisateur que la liste dest vide
-		fmt.Printf("%vLa liste des tâches est vide.%v\n", escapeCodeRed, escapeCodeColorReset)
+		color.New(color.FgRed).Println("La liste des tâches est vide.")
 
 	//Si la liste n'est pas vide
 	} else {
@@ -353,41 +305,41 @@ func listTask(){
 				case "normal":
 
 					//On met pas de couleur mais on rajoute le ":"
-					nom = strings.Join([]string{tache.Nom, ":"}, "")
+					nom = color.WhiteString("[%v] %v",i, tache.Nom)
 					break;
 				
 				//Si le type de la tâche est un problème
 				case "problème":
 
 					//On met le nom en rouge
-					nom = strings.Join([]string{escapeCodeRed, tache.Nom, ":", escapeCodeColorReset}, "")
+					nom = color.RedString("[%v] %v",i, tache.Nom)
 					break;
 				
 				//Si la tâche est une solution à un problème
 				case "solution":
 
 					//On met son texte en vert
-					nom = strings.Join([]string{escapeCodeGreen, tache.Nom, ":", escapeCodeColorReset}, "")
+					nom = color.GreenString("[%v] %v",i, tache.Nom)
 					break;
 				
 				//Si cette tâche est une réunion avec les chefs de projets ou le client
 				case "réunion":
 
 					//On met le texte en bleu
-					nom = strings.Join([]string{escapeCodeBlue, tache.Nom, ":", escapeCodeColorReset}, "")
+					nom = color.CyanString("[%v] %v",i, tache.Nom)
 					break;
 				
 				//Si cette tâche est une chose divers
 				case "divers":
 
 					//On met cette tâche en jaune
-					nom = strings.Join([]string{escapeCodeYellow, tache.Nom, ":", escapeCodeColorReset}, "")
+					nom = color.YellowString("[%v] %v",i, tache.Nom)
 					break;
 
 			}
 
 			//Donner les infos de la tâche à l'utilisateur
-			fmt.Printf("[%v] %v\nHeures: %v\nFacturable: %v\nType de tâche: %v\n\n", i, nom , tache.Heures, facturable, tache.Type)
+			fmt.Printf("%v\nHeures: %v\nFacturable: %v\nType de tâche: %v\n\n", nom , tache.Heures, facturable, tache.Type)
 			
 			//On incrémente l'index
 			i++
@@ -405,6 +357,7 @@ func listTask(){
 	}
 }
 
+//Permet d'exporter la liste des commandes en fichier classeur pour Excel ou LibreOffice
 func exportToXlsx() error {
 
 	//Si la liste n'est pas vide
@@ -577,7 +530,7 @@ func exportToXlsx() error {
 	} else {
 
 		//On dit que la liste est vide
-		fmt.Printf("%vLa liste est vide.%v\n", escapeCodeRed,  escapeCodeColorReset)
+		color.New(color.FgRed).Println("La liste est vide.")
 
 		//On crée une erreur et on la renvoie plus haut
 		return errors.New("La liste des tâches est vide")
@@ -587,10 +540,7 @@ func exportToXlsx() error {
 }
 
 //Permet de supprimer un élément de la liste
-func deleteElement() bool{
-
-	//Est-ce que tout s'est bien passé ?
-	ok := false
+func deleteElement() {
 
 	//Tant que j'ai pas rentré un numéro valide ou que la liste n'est pas vide
 	for {
@@ -604,41 +554,236 @@ func deleteElement() bool{
 			//Lire les tâches pour aider notre utilisateur
 			listTask()
 
+			//Message d'erreur, l'utilisateur n'a pas pris un nombre entre 1 et la taille de la liste
+			fmt.Printf("Choisissez un nombre entre 1 et %v ou \"cancel\" pour annuler.\n", len(listeTaches))
+
 			//On lit la chaîne de caractères
 			line := readLine()
 
-			//Je parse ce que j'ai lu en int
-			number, err := strconv.Atoi(line)
+			if strings.ToLower(line) == "cancel" {
 
-			//Si le nombre se trouve dans la range de la liste
-			if err == nil && number >= 1 && number <= len(listeTaches) {
+				//Message d'erreur, l'utilisateur n'a pas pris un nombre entre 1 et la taille de la liste
+				color.New(color.FgRed).Println("Commande annulée.")
 
-				// Supprimer l'élément de la liste
-				listeTaches = append(listeTaches[:number-1], listeTaches[number:]...)
-
-				//Tout s'est bien passé
-				ok = true
-
-				//On dit à l'utilisateur que l'élément est supprimé
-				fmt.Printf("%vÉlément supprimé avec succès !%v\n", escapeCodeGreen, escapeCodeColorReset)
-
-				//On retourne ok, par principe
-				return ok
+				//On sort de cette boucle
+				break;
 
 			} else {
 
-				//Message d'erreur, l'utilisateur n'a pas pris un nombre entre 1 et la taille de la liste
-				fmt.Printf("%vChoisissez un nombre entre 1 et %v.%v\n", escapeCodeRed, len(listeTaches), escapeCodeColorReset)
+				//Je parse ce que j'ai lu en int
+				number, err := strconv.Atoi(line)
 
-			}	
+				//Si le nombre se trouve dans la range de la liste
+				if err == nil && number >= 1 && number <= len(listeTaches) {
+
+					// Supprimer l'élément de la liste
+					listeTaches = append(listeTaches[:number-1], listeTaches[number:]...)
+
+					//On dit à l'utilisateur que l'élément est supprimé
+					color.New(color.FgGreen).Println("Élément supprimé avec succès !")
+
+					//On sort de la boucle
+					break;
+
+				} else  {
+
+					//Message d'erreur, l'utilisateur n'a pas pris un nombre entre 1 et la taille de la liste
+					color.New(color.FgRed).Printf("Choisissez un nombre entre 1 et %v ou \"cancel\" pour annuler.\n", len(listeTaches))
+
+				}	
+			}
 		} else {
 
 			//Message d'erreur pour dire que la liste est vide
-			fmt.Printf("%vLa liste est vide.%v\n", escapeCodeRed,  escapeCodeColorReset)
+			color.New(color.FgRed).Println("La liste est vide.")
 
-			//Retourner false
-			return ok
+			//On sort de la boucle
+			break;
+		}
+	}
+}
+
+//Permet de lire la commande
+func readCommand(){
+
+	//Lire l'entrée de l'utilisateur
+	color.New(color.FgHiMagenta).Print("TaskManager")
+
+	color.New(color.FgCyan).Print(" \u21E2 ")
+	
+	//On prend le texte que l'utilisateur a rentré
+	input := strings.ToLower(readLine())
+
+	//On a pas trouvé la commande pour l'instant
+	commandFounded := false
+
+	//Je défini la cible si la commande est trouvé
+	var targetCommand Commande
+
+	//On parcourt la liste des commandes
+	for _, command := range listeCommandes {
+
+		//Si le nom de la commande est la même que mon input et de manière case unsensitive
+		if command.Nom == input {
+
+			//La commande est trouvée
+			commandFounded = true
+
+			//On prend la commande cible
+			targetCommand = command
+
+			//On sort de la boucle
+			break;
 
 		}
+
+	}
+
+	//Si la commande est trouvée
+	if commandFounded {
+
+		//On démarre la commande
+		targetCommand.Run()
+
+	} else {
+
+		//Dire à l'utilisateur que sa commande n'est pas valide
+		color.New(color.FgRed).Printf("Commande invalide: %s.\n", strings.ToLower(input)) 
+
+	}
+
+}
+
+//Affiche une page d'aide avec toutes les commandes de l'application
+func printCommands(){
+
+	//Déclaration vide pour la prise en charge des pluriels
+	commandText := ""
+
+	//Parcourir la liste des commandes
+	for _, command := range listeCommandes {
+
+		//Afficher les infos de la commande
+		fmt.Printf("%v: %v\nUsage: %v\n\n", command.Nom, command.Description, command.Usage)
+
+	}
+
+	//Si le nombre de commande est différent de 1 ou 0
+	if len(listeCommandes) != 1 || len(listeCommandes) != 0 {
+
+		//Mettre commande au pluriel
+		commandText = "commandes"
+
+	} else {
+
+		//Mettre command au singulier
+		commandText = "commande"
+
+	}
+
+	//Afficher le nombre de commandes chargées
+	fmt.Println()
+	fmt.Printf("Il y a actuellement %v %v !\n", len(listeCommandes), commandText)
+}
+
+//Permet de charger les commandes
+func loadCommands(){
+
+	//Commande pour ajouter une tâche
+	addTaskCommand := Commande{
+		Nom: "add task",
+		Usage:"add task",
+		Description:"Permet d'ajouter une tâche en mémoire",
+		Run: addTask,
+	}
+
+	//Commande pour supprimer une tâche
+	deleteTaskCommand := Commande{
+		Nom: "delete task",
+		Usage: "delete task",
+		Description: "Permet de supprimer une tâche",
+		Run: deleteElement,
+	}
+
+	//Commande pour lister les tâches
+	listTasksCommand := Commande{
+		Nom: "list tasks",
+		Usage: "list tasks",
+		Description: "Permet de lister les tâches",
+		Run: listTask,
+	}
+
+	//Commande d'exportation du ficher classeur
+	exportCommand := Commande{
+		Nom: "export",
+		Usage: "export",
+		Description: "Exporte la liste des tâches de la console dans un fichier classeur de type Excel",
+		Run: func() {
+
+			//Dire à l'utilisateur que le fichier est en cours d'exportation
+			fmt.Println("Le fichier est en cours d'exportation...")
+
+			//Exporter la liste des tâches avec les heures dans le fichier
+			erreur := exportToXlsx()
+
+			//S'il n'y a pas d'erreur
+			if erreur == nil {
+
+				//Message de succès
+				color.New(color.FgGreen).Println("Ce fichier a été exporté avec succès !")
+
+			//Il y a eu une erreur
+			} else {
+
+				//Message d'erreur
+				color.New(color.FgRed).Println("Une erreur est survenue lors de l'exportation !")
+
+			}
+		},
+	}
+
+	//Commande pour quitter l'application
+	exitCommand := Commande{
+		Nom:"exit",
+		Usage:"exit",
+		Description: "Permet de quitter l'application.",
+		Run: func() {
+
+			//On dit au revoir à l'utilisateur
+			fmt.Println("Au revoir !")
+
+			//On ferme le programme
+			os.Exit(0)
+
+		},
+	}
+
+	//Commande qui affiche la page d'aide
+	helpCommand := Commande{
+		Nom: "help",
+		Usage: "help",
+		Description:"Affiche la page d'aide",
+		Run: printCommands,
+	}
+
+	//Chargement des commandes
+	listeCommandes = append(listeCommandes, addTaskCommand)
+	listeCommandes = append(listeCommandes, deleteTaskCommand)
+	listeCommandes = append(listeCommandes, listTasksCommand)
+	listeCommandes = append(listeCommandes, exitCommand)
+	listeCommandes = append(listeCommandes, helpCommand)
+	listeCommandes = append(listeCommandes, exportCommand)
+
+	//Si part hasard la liste de commandes n'est pas vide
+	if len(listeCommandes) != 0 {
+
+		//Message de succès
+		color.New(color.FgGreen).Printf("Les commandes on été chargées avec succès. Actuellement il y a %x commandes!\n", len(listeCommandes))
+
+	} else {
+
+		//Message d'erreur
+		color.New(color.FgRed).Println("Le chargement des commandes a échoué, la liste est vide.")
+
 	}
 }
