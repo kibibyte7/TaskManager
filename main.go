@@ -8,9 +8,11 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
-	"github.com/tealeg/xlsx"
+
 	"github.com/fatih/color"
+	"github.com/tealeg/xlsx/v3"
 )
 
 //La structure de la tâche
@@ -25,6 +27,7 @@ type Task struct {
 type Commande struct{
 	Nom string
 	Usage string
+	Aliases []string
 	Description string
 	Run func()
 }
@@ -34,17 +37,6 @@ var listeTaches []Task
 
 //La liste des commandes
 var listeCommandes []Commande
-
-//Pour mettre des couleurs dans le terminal
-/*
-const escapeCodeRed = "\033[38;5;196m"
-const escapeCodeYellow = "\033[38;5;226m"
-const escapeCodeGreen = "\033[38;5;82m"
-const escapeCodeRose = "\033[38;5;205;1m"
-const escapeCodeBlue = "\033[38;5;87m"
-const escapeCodeViolet = "\033[38;5;99;1m"
-const escapeCodeColorReset = "\033[0m"
-*/
 
 //Pour mettre des couleurs dans le terminal
 var (
@@ -128,6 +120,12 @@ func readBool() bool {
 		//Je lis mon entrée
 		line := strings.ToLower(readLine())
 
+		if len(line) == 0 {
+
+			line = "oui"
+
+		}
+
 		//Si j'ai dit oui je retourne vrai
 		if line == "oui" {
 
@@ -144,7 +142,6 @@ func readBool() bool {
 		
 		//Je signale à l'utilisateur qu'il faut répondre par oui ou non
 		fmt.Printf("%sVeuillez entrer 'oui' ou 'non'.%s\n", escapeCodeRed(), escapeCodeColorReset())
-
 	}
 }
 
@@ -156,6 +153,12 @@ func readType() string {
 
 		//On lit la chaine de caractère
 		line := readLine()
+
+		if len(line) == 0 {
+
+			line = "1"
+
+		}
 
 		//Je parse ce que j'ai lu en int
 		number, err := strconv.Atoi(line)
@@ -223,7 +226,7 @@ func addTask() {
 	fmt.Println()
 
 	//Est-ce que cette tâche est facturable
-	fmt.Println("Cette tâche est-elle facturable ? ")
+	fmt.Println("Cette tâche est-elle facturable ? Choix par défaut [Oui]")
 	tache.Facturable = readBool()
 	fmt.Println()
 
@@ -235,6 +238,8 @@ func addTask() {
 	color.New(color.FgGreen).Println("[3] Solution")
 	color.New(color.FgCyan).Println("[4] Réunion")
 	color.New(color.FgYellow).Println("[5] Divers")
+	fmt.Println()
+	fmt.Println("Choix par défaut [1]")
 	tache.Type = readType()
 	fmt.Println()
 
@@ -389,30 +394,44 @@ func exportToXlsx() error {
 		titres.AddCell().Value = "Heures facturable"
 		titres.AddCell().Value = "Heures non-facturable"
 
+		//Couleurs
+		rouge := *xlsx.NewFill("color", "FFFF0000", "FFFF0000")
+		vert := *xlsx.NewFill("color", "FF23B84B","FF23B84B")
+		bleu := *xlsx.NewFill("color", "FF00D5FF","FF00D5FF")
+		jaune := *xlsx.NewFill("color", "FFD4FC21","FFD4FC21")
+
 		//Style des problèmes
 		styleProbleme := xlsx.NewStyle()
-		styleProbleme.Fill = *xlsx.NewFill("solid", "#000000", "#FF0000")
+		styleProbleme.Fill = rouge
+		styleProbleme.Font.Name = "Arial"
+		styleProbleme.Font.Size = 8
 		styleProbleme.Font.Bold = true
 		styleProbleme.ApplyFill = true
 		styleProbleme.ApplyFont = true
 
 		//Style des solutions
 		styleSolution := xlsx.NewStyle()
-		styleSolution.Fill = *xlsx.NewFill("solid", "#23B84B","#000000")
+		styleSolution.Fill = vert
+		styleSolution.Font.Name = "Arial"
+		styleSolution.Font.Size = 8
 		styleSolution.Font.Bold = true
 		styleSolution.ApplyFill = true
 		styleSolution.ApplyFont = true
 
 		//Style des réunions
 		styleReunion := xlsx.NewStyle()
-		styleReunion.Fill = *xlsx.NewFill("solid", "#000000", "#00D5FF")
+		styleReunion.Fill = bleu
+		styleReunion.Font.Name = "Arial"
+		styleReunion.Font.Size = 8
 		styleReunion.Font.Bold = true
 		styleReunion.ApplyFill = true
 		styleReunion.ApplyFont = true
 
 		//Style des choses diverses
 		styleDivers := xlsx.NewStyle()
-		styleDivers.Fill = *xlsx.NewFill("solid", "#000000", "#D4FC21")
+		styleDivers.Fill = jaune
+		styleDivers.Font.Name = "Arial"
+		styleDivers.Font.Size = 8
 		styleDivers.Font.Bold = true
 		styleDivers.ApplyFill = true
 		styleDivers.ApplyFont = true
@@ -443,11 +462,12 @@ func exportToXlsx() error {
 					//On met le nom en rouge
 					cell = ligne.AddCell()
 
-					//Je formate la tâche en "Poblème #numéro: nom de la tâche"
-					cell.Value = strings.Join([]string{"Problème #", fmt.Sprintf("%v",problemID), ": ", tache.Nom}, "")
-
 					//Je met le style que la cellule doit avoit (Gras + rouge)
 					cell.SetStyle(styleProbleme)
+
+					//Je formate la tâche en "Poblème #numéro: nom de la tâche"
+					cell.Value = strings.Join([]string{"Problème #", fmt.Sprintf("%v",problemID), ": ", tache.Nom}, "")
+				
 
 					//J'incrémente l'ID du problème
 					problemID++
@@ -539,6 +559,12 @@ func exportToXlsx() error {
 	
 }
 
+func exportToCsv() {
+
+
+
+}
+
 //Permet de supprimer un élément de la liste
 func deleteElement() {
 
@@ -624,7 +650,7 @@ func readCommand(){
 	for _, command := range listeCommandes {
 
 		//Si le nom de la commande est la même que mon input et de manière case unsensitive
-		if command.Nom == input {
+		if command.Nom == input || contains(command.Aliases, input){
 
 			//La commande est trouvée
 			commandFounded = true
@@ -664,7 +690,7 @@ func printCommands(){
 	for _, command := range listeCommandes {
 
 		//Afficher les infos de la commande
-		fmt.Printf("%v: %v\nUsage: %v\n\n", command.Nom, command.Description, command.Usage)
+		fmt.Printf("%v: %v\nUsage: %v\nAliases: %v\n\n", command.Nom, command.Description, command.Usage, strings.Join(command.Aliases, ", "))
 
 	}
 
@@ -686,6 +712,20 @@ func printCommands(){
 	fmt.Printf("Il y a actuellement %v %v !\n", len(listeCommandes), commandText)
 }
 
+//Permet de quitter l'application
+func exit(){
+
+	//On dit au revoir à l'utilisateur
+	fmt.Println("Au revoir !")
+
+	//Attendre une seconde
+	time.Sleep(1 * time.Second)
+
+	//On ferme le programme
+	os.Exit(0)
+
+}
+
 //Permet de charger les commandes
 func loadCommands(){
 
@@ -693,6 +733,7 @@ func loadCommands(){
 	addTaskCommand := Commande{
 		Nom: "add task",
 		Usage:"add task",
+		Aliases: []string{"addt", "at"},
 		Description:"Permet d'ajouter une tâche en mémoire",
 		Run: addTask,
 	}
@@ -700,6 +741,7 @@ func loadCommands(){
 	//Commande pour supprimer une tâche
 	deleteTaskCommand := Commande{
 		Nom: "delete task",
+		Aliases: []string{"delt", "dt"},
 		Usage: "delete task",
 		Description: "Permet de supprimer une tâche",
 		Run: deleteElement,
@@ -708,6 +750,7 @@ func loadCommands(){
 	//Commande pour lister les tâches
 	listTasksCommand := Commande{
 		Nom: "list tasks",
+		Aliases: []string{"list", "lt"},
 		Usage: "list tasks",
 		Description: "Permet de lister les tâches",
 		Run: listTask,
@@ -716,6 +759,7 @@ func loadCommands(){
 	//Commande d'exportation du ficher classeur
 	exportCommand := Commande{
 		Nom: "export",
+		Aliases: []string{"exp", "save"},
 		Usage: "export",
 		Description: "Exporte la liste des tâches de la console dans un fichier classeur de type Excel",
 		Run: func() {
@@ -745,22 +789,19 @@ func loadCommands(){
 	//Commande pour quitter l'application
 	exitCommand := Commande{
 		Nom:"exit",
+		Aliases: []string{"ex"},
 		Usage:"exit",
 		Description: "Permet de quitter l'application.",
-		Run: func() {
-
-			//On dit au revoir à l'utilisateur
-			fmt.Println("Au revoir !")
-
-			//On ferme le programme
-			os.Exit(0)
-
-		},
+		Run: exit,
 	}
+
+	//Commande qui permet de mettre à jour la tâche
+
 
 	//Commande qui affiche la page d'aide
 	helpCommand := Commande{
 		Nom: "help",
+		Aliases: []string{"h"},
 		Usage: "help",
 		Description:"Affiche la page d'aide",
 		Run: printCommands,
@@ -778,7 +819,7 @@ func loadCommands(){
 	if len(listeCommandes) != 0 {
 
 		//Message de succès
-		color.New(color.FgGreen).Printf("Les commandes on été chargées avec succès. Actuellement il y a %x commandes!\n", len(listeCommandes))
+		color.New(color.FgGreen).Printf("Les commandes ont été chargées avec succès. Actuellement il y a %x commandes!\n", len(listeCommandes))
 
 	} else {
 
@@ -786,4 +827,14 @@ func loadCommands(){
 		color.New(color.FgRed).Println("Le chargement des commandes a échoué, la liste est vide.")
 
 	}
+}
+
+// contains retourne true si la chaîne existe dans la liste, sinon false
+func contains(list []string, str string) bool {
+    for _, s := range list {
+        if s == str {
+            return true
+        }
+    }
+    return false
 }
