@@ -10,9 +10,10 @@ Voici une liste de commandes qui seront disponibles avec une revue de ce qui est
 - [x] export (Exporte la liste des tâches en mémoire dans un fichier xlsx comme pour un journal de travail basique)
 - [x] help (Commande d'aide)
 - [ ] update task (Permet de mettre à jour une tâche)
+- [x] Aliases de commandes 
 
 Bonus:
-- [ ] Historique des commandes (Circulation dans l'hitorique avec flèche du haut ou du bas)
+- [ ] Historique des commandes (Circulation dans l'historique avec flèche du haut ou du bas)
 - [ ] Autocomplete (comme les raccourcis cmd, en pressant la touche tab)
 - [ ] Appli en mvc (architecture modèle, vue, contrôleur)
 
